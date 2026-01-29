@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Bite - Order Food</title>
+    <meta name="description" content="Order delicious food from Quick Bite">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="container navbar-content">
+            <a href="customer.html" class="navbar-brand">
+                <i class="fas fa-bolt"></i> Quick Bite
+            </a>
+            <div class="navbar-nav">
+                <span class="nav-link" id="username-display">Customer</span>
+                <button class="btn btn-secondary btn-sm" id="reviews-btn" title="Write a Review">
+                    <i class="fas fa-star"></i>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="history-btn" title="Order History">
+                    <i class="fas fa-history"></i>
+                </button>
+                <button class="cart-btn" id="cart-btn" aria-label="Cart">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="cart-count" id="cart-count" style="display: none;">0</span>
+                </button>
+                <button class="btn btn-secondary btn-sm" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1 class="hero-title">
+                Delicious Food,<br><span>Delivered Fast</span>
+            </h1>
+            <p class="hero-subtitle">
+                Browse our menu and order your favorite dishes. Fresh ingredients, amazing taste, delivered right to
+                your door.
+            </p>
+
+            <!-- Search Bar -->
+            <div class="search-container">
+                <div class="search-bar">
+                    <i class="fas fa-search" style="color: var(--gray-400);"></i>
+                    <input type="text" id="search-input" placeholder="Search by dish name or ingredients...">
+                    <button id="search-btn" aria-label="Search">
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Food Grid -->
+    <section class="container" style="padding-bottom: 3rem;">
+        <h2 class="section-title">
+            <i class="fas fa-utensils" style="color: var(--primary);"></i> Our Menu
+        </h2>
+        <div class="food-grid" id="food-grid">
+            <!-- Food cards rendered by JS -->
+        </div>
+    </section>
+
+    <!-- Customer Reviews Section -->
+    <section class="container reviews-section">
+        <h2 class="section-title">
+            <i class="fas fa-star" style="color: var(--warning);"></i> Customer Reviews
+        </h2>
+        <div class="reviews-grid" id="customer-reviews">
+            <!-- Reviews rendered by JS -->
+        </div>
+    </section>
+
+    <!-- Cart Overlay -->
+    <div class="cart-overlay" id="cart-overlay"></div>
+
+    <!-- Cart Sidebar -->
+    <aside class="cart-sidebar" id="cart-sidebar">
+        <div class="cart-header">
+            <h2><i class="fas fa-shopping-cart"></i> Your Cart</h2>
+            <button class="cart-close" id="cart-close" aria-label="Close cart">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="cart-items" id="cart-items">
+            <!-- Cart items rendered by JS -->
+        </div>
+
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Total:</span>
+                <span id="cart-total">₹0</span>
+            </div>
+            <button class="btn btn-primary btn-lg" id="checkout-btn" style="width: 100%;" disabled>
+                <i class="fas fa-credit-card"></i> Checkout
+            </button>
+        </div>
+    </aside>
+
+    <!-- Checkout Modal -->
+    <div class="modal-overlay" id="checkout-modal">
+        <div class="modal glass-card">
+            <div class="modal-header">
+                <h2><i class="fas fa-receipt"></i> Complete Order</h2>
+                <button class="modal-close" id="modal-close" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div id="order-summary"
+                style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 0.5rem;">
+                <!-- Order summary rendered by JS -->
+            </div>
+
+            <form id="checkout-form">
+                <div class="form-group">
+                    <label for="customer-name" class="form-label">Full Name</label>
+                    <input type="text" id="customer-name" class="form-input" placeholder="John Doe" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="customer-phone" class="form-label">Phone Number</label>
+                    <input type="tel" id="customer-phone" class="form-input" placeholder="+91 98765 43210" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="customer-address" class="form-label">Delivery Address</label>
+                    <textarea id="customer-address" class="form-input" placeholder="123 Main St, City, State"
+                        required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg" style="width: 100%;">
+                    <i class="fas fa-check"></i> Place Order
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Order History Modal -->
+    <div class="modal-overlay" id="history-modal">
+        <div class="modal glass-card" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-history"></i> Order History</h2>
+                <button class="modal-close" id="history-close" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div id="history-list" style="max-height: 60vh; overflow-y: auto;">
+                <!-- Order history rendered by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Write Review Modal -->
+    <div class="modal-overlay" id="review-modal">
+        <div class="modal glass-card" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-star"></i> Write a Review</h2>
+                <button class="modal-close" id="review-close" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="review-form">
+                <div class="form-group">
+                    <label for="review-food" class="form-label">Select Food Item</label>
+                    <select id="review-food" class="form-input" required>
+                        <option value="">-- Choose a dish --</option>
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Your Rating</label>
+                    <div class="star-rating" id="star-rating">
+                        <span class="star" data-rating="1"><i class="fas fa-star"></i></span>
+                        <span class="star" data-rating="2"><i class="fas fa-star"></i></span>
+                        <span class="star" data-rating="3"><i class="fas fa-star"></i></span>
+                        <span class="star" data-rating="4"><i class="fas fa-star"></i></span>
+                        <span class="star" data-rating="5"><i class="fas fa-star"></i></span>
+                    </div>
+                    <input type="hidden" id="review-rating" value="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="review-comment" class="form-label">Your Feedback</label>
+                    <textarea id="review-comment" class="form-input" rows="4"
+                        placeholder="Tell us about your experience... What did you like? Any suggestions for improvement?"
+                        required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg" style="width: 100%;">
+                    <i class="fas fa-paper-plane"></i> Submit Review
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast-container"></div>
+
+    <script src="js/api.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/customer.js"></script>
+</body>
+
+</html>
