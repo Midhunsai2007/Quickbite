@@ -1,5 +1,5 @@
-// ===== DATA MODULE (MongoDB Version) =====
-// This version uses API calls to MongoDB backend instead of localStorage
+// ===== DATA MODULE (Supabase Version) =====
+// Uses Supabase for persistent storage with localStorage fallback
 
 const CURRENCY = '₹';
 
@@ -15,14 +15,22 @@ const ORDER_STATUSES = [
   { value: 'cancelled', label: 'Cancelled' }
 ];
 
-// Check if API is available
-let useAPI = false;
-checkAPIHealth().then(available => {
-  useAPI = available;
-  console.log(available ? '✅ Connected to MongoDB API' : '⚠️ Using localStorage fallback');
+// Check if Supabase is available
+let useSupabase = false;
+
+async function initDatabase() {
+  if (typeof checkAPIHealth === 'function') {
+    useSupabase = await checkAPIHealth();
+    console.log(useSupabase ? '✅ Connected to Supabase' : '⚠️ Using localStorage fallback');
+  }
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(initDatabase, 100);
 });
 
-// ===== SESSION MANAGEMENT (localStorage only) =====
+// ===== SESSION MANAGEMENT =====
 function getSession() {
   const session = localStorage.getItem('quickbite_session');
   return session ? JSON.parse(session) : null;
@@ -54,12 +62,23 @@ function requireAuth(requiredRole) {
 let cachedFoods = [];
 
 async function getFoodItemsAsync() {
-  if (useAPI) {
+  if (useSupabase && typeof FoodAPI !== 'undefined') {
     try {
-      cachedFoods = await FoodAPI.getAll();
-      return cachedFoods;
+      const foods = await FoodAPI.getAll();
+      if (foods) {
+        cachedFoods = foods.map(f => ({
+          id: f.id,
+          name: f.name,
+          image: f.image,
+          price: f.price,
+          quantity: f.quantity,
+          stock: f.stock,
+          ingredients: f.ingredients
+        }));
+        return cachedFoods;
+      }
     } catch (error) {
-      console.error('API Error, falling back to localStorage:', error);
+      console.error('Supabase Error:', error);
     }
   }
   return getLocalFoodItems();
@@ -81,18 +100,19 @@ function getLocalFoodItems() {
 
 function getFoodById(id) {
   const foods = getFoodItems();
-  const food = foods.find(f => f.id == id || f._id == id);
-  return food || null;
+  return foods.find(f => f.id == id) || null;
 }
 
 async function addFoodItem(food) {
-  if (useAPI) {
+  if (useSupabase && typeof FoodAPI !== 'undefined') {
     try {
-      const newFood = await FoodAPI.create(food);
-      cachedFoods = await FoodAPI.getAll();
-      return newFood;
+      const result = await FoodAPI.create(food);
+      if (result) {
+        cachedFoods = await FoodAPI.getAll() || [];
+        return result;
+      }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Supabase Error:', error);
     }
   }
   // Fallback to localStorage
@@ -104,13 +124,15 @@ async function addFoodItem(food) {
 }
 
 async function updateFoodItem(id, updates) {
-  if (useAPI) {
+  if (useSupabase && typeof FoodAPI !== 'undefined') {
     try {
-      const updated = await FoodAPI.update(id, updates);
-      cachedFoods = await FoodAPI.getAll();
-      return updated;
+      const result = await FoodAPI.update(id, updates);
+      if (result) {
+        cachedFoods = await FoodAPI.getAll() || [];
+        return result;
+      }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Supabase Error:', error);
     }
   }
   // Fallback to localStorage
@@ -125,13 +147,13 @@ async function updateFoodItem(id, updates) {
 }
 
 async function deleteFoodItem(id) {
-  if (useAPI) {
+  if (useSupabase && typeof FoodAPI !== 'undefined') {
     try {
       await FoodAPI.delete(id);
-      cachedFoods = await FoodAPI.getAll();
+      cachedFoods = await FoodAPI.getAll() || [];
       return true;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Supabase Error:', error);
     }
   }
   // Fallback to localStorage
@@ -150,7 +172,7 @@ function searchFoodByIngredient(query) {
   );
 }
 
-// ===== CART (localStorage only - per session) =====
+// ===== CART (localStorage only) =====
 function getCart() {
   const cart = localStorage.getItem('quickbite_cart');
   return cart ? JSON.parse(cart) : [];
@@ -159,11 +181,9 @@ function getCart() {
 function addToCart(foodId, qty = 1) {
   const cart = getCart();
   const food = getFoodById(foodId);
-  const id = food._id || food.id;
-
   if (!food || food.stock <= 0) return null;
 
-  const existing = cart.find(item => item.foodId == id);
+  const existing = cart.find(item => item.foodId == foodId);
   if (existing) {
     const newQty = existing.quantity + qty;
     if (newQty <= food.stock) {
@@ -173,7 +193,7 @@ function addToCart(foodId, qty = 1) {
     }
   } else {
     if (qty <= food.stock) {
-      cart.push({ foodId: id, quantity: qty });
+      cart.push({ foodId: parseInt(foodId), quantity: qty });
     } else {
       return null;
     }
@@ -224,12 +244,27 @@ function getCartTotal() {
 let cachedOrders = [];
 
 async function getOrdersAsync() {
-  if (useAPI) {
+  if (useSupabase && typeof OrderAPI !== 'undefined') {
     try {
-      cachedOrders = await OrderAPI.getAll();
-      return cachedOrders;
+      const orders = await OrderAPI.getAll();
+      if (orders) {
+        cachedOrders = orders.map(o => ({
+          id: o.id,
+          customer: {
+            name: o.customer_name,
+            phone: o.customer_phone,
+            address: o.customer_address,
+            username: o.customer_username
+          },
+          items: o.items,
+          total: o.total,
+          status: o.status,
+          time: o.created_at
+        }));
+        return cachedOrders;
+      }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Supabase Error:', error);
     }
   }
   return getLocalOrders();
@@ -246,11 +281,26 @@ function getLocalOrders() {
 }
 
 async function getOrdersByUserAsync(username) {
-  if (useAPI) {
+  if (useSupabase && typeof OrderAPI !== 'undefined') {
     try {
-      return await OrderAPI.getByUser(username);
+      const orders = await OrderAPI.getByUser(username);
+      if (orders) {
+        return orders.map(o => ({
+          id: o.id,
+          customer: {
+            name: o.customer_name,
+            phone: o.customer_phone,
+            address: o.customer_address,
+            username: o.customer_username
+          },
+          items: o.items,
+          total: o.total,
+          status: o.status,
+          time: o.created_at
+        }));
+      }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Supabase Error:', error);
     }
   }
   return getLocalOrders().filter(o => o.customer.username === username);
@@ -264,27 +314,6 @@ async function placeOrder(customerInfo) {
   const cart = getCart();
   if (cart.length === 0) return null;
 
-  if (useAPI) {
-    try {
-      const orderData = {
-        customer: customerInfo,
-        items: cart.map(item => ({
-          foodId: item.foodId,
-          quantity: item.quantity
-        }))
-      };
-      const order = await OrderAPI.create(orderData);
-      clearCart();
-      cachedFoods = await FoodAPI.getAll();
-      return order;
-    } catch (error) {
-      console.error('API Error:', error);
-      return null;
-    }
-  }
-
-  // Fallback to localStorage
-  const foods = getLocalFoodItems();
   const orderItems = cart.map(item => {
     const food = getFoodById(item.foodId);
     return {
@@ -301,7 +330,29 @@ async function placeOrder(customerInfo) {
     return sum + (food ? food.price * item.quantity : 0);
   }, 0);
 
-  // Update stock locally
+  if (useSupabase && typeof OrderAPI !== 'undefined') {
+    try {
+      const order = await OrderAPI.create({
+        customer: customerInfo,
+        items: orderItems,
+        total
+      });
+      if (order) {
+        // Update stock
+        for (const item of cart) {
+          await FoodAPI.updateStock(item.foodId, item.quantity);
+        }
+        clearCart();
+        cachedFoods = await FoodAPI.getAll() || [];
+        return { id: order.id, ...order };
+      }
+    } catch (error) {
+      console.error('Supabase Error:', error);
+    }
+  }
+
+  // Fallback to localStorage
+  const foods = getLocalFoodItems();
   cart.forEach(item => {
     const foodIndex = foods.findIndex(f => f.id == item.foodId);
     if (foodIndex !== -1) {
@@ -327,13 +378,15 @@ async function placeOrder(customerInfo) {
 }
 
 async function updateOrderStatus(orderId, status) {
-  if (useAPI) {
+  if (useSupabase && typeof OrderAPI !== 'undefined') {
     try {
-      const updated = await OrderAPI.updateStatus(orderId, status);
-      cachedOrders = await OrderAPI.getAll();
-      return updated;
+      const result = await OrderAPI.updateStatus(orderId, status);
+      if (result) {
+        cachedOrders = [];
+        return result;
+      }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Supabase Error:', error);
     }
   }
   // Fallback to localStorage
@@ -349,22 +402,14 @@ async function updateOrderStatus(orderId, status) {
 
 // ===== USERS =====
 async function validateAdmin(username, password) {
-  if (useAPI) {
-    try {
-      const result = await UserAPI.login(username, password, 'admin');
-      return result.success;
-    } catch (error) {
-      return false;
-    }
-  }
   return username === 'midhun' && password === '1234';
 }
 
 async function validateUser(username, password) {
-  if (useAPI) {
+  if (useSupabase && typeof UserAPI !== 'undefined') {
     try {
       const result = await UserAPI.login(username, password, 'customer');
-      return result.success ? { username } : null;
+      return result ? { username } : null;
     } catch (error) {
       return null;
     }
@@ -375,10 +420,10 @@ async function validateUser(username, password) {
 }
 
 async function registerUser(username, password) {
-  if (useAPI) {
+  if (useSupabase && typeof UserAPI !== 'undefined') {
     try {
       const result = await UserAPI.register(username, password);
-      return result.success ? { username } : null;
+      return result ? { username } : null;
     } catch (error) {
       return null;
     }
@@ -398,12 +443,22 @@ async function registerUser(username, password) {
 let cachedReviews = [];
 
 async function getReviewsAsync() {
-  if (useAPI) {
+  if (useSupabase && typeof ReviewAPI !== 'undefined') {
     try {
-      cachedReviews = await ReviewAPI.getAll();
-      return cachedReviews;
+      const reviews = await ReviewAPI.getAll();
+      if (reviews) {
+        cachedReviews = reviews.map(r => ({
+          id: r.id,
+          foodId: r.food_id,
+          customerName: r.customer_name,
+          rating: r.rating,
+          comment: r.comment,
+          time: r.created_at
+        }));
+        return cachedReviews;
+      }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Supabase Error:', error);
     }
   }
   return getLocalReviews();
@@ -419,13 +474,16 @@ function getLocalReviews() {
 }
 
 async function addReview(review) {
-  if (useAPI) {
+  if (useSupabase && typeof ReviewAPI !== 'undefined') {
     try {
-      const newReview = await ReviewAPI.create(review);
-      cachedReviews = await ReviewAPI.getAll();
-      return newReview;
+      const result = await ReviewAPI.create(review);
+      if (result) {
+        cachedReviews = [];
+        await getReviewsAsync();
+        return result;
+      }
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Supabase Error:', error);
     }
   }
   // Fallback to localStorage
@@ -438,13 +496,13 @@ async function addReview(review) {
 }
 
 async function deleteReview(id) {
-  if (useAPI) {
+  if (useSupabase && typeof ReviewAPI !== 'undefined') {
     try {
       await ReviewAPI.delete(id);
-      cachedReviews = await ReviewAPI.getAll();
+      cachedReviews = [];
       return true;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Supabase Error:', error);
     }
   }
   // Fallback to localStorage
@@ -522,7 +580,7 @@ const DEFAULT_FOOD_ITEMS = [
   }
 ];
 
-// Initialize data on load (for localStorage fallback)
+// Initialize data on load
 (function initializeData() {
   if (!localStorage.getItem('quickbite_foods')) {
     localStorage.setItem('quickbite_foods', JSON.stringify(DEFAULT_FOOD_ITEMS));
